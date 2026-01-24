@@ -1,8 +1,13 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["https://audrianna-overbrave-presumingly.ngrok-free.dev"],
+  allowedDevOrigins: ["https://exam-system-nocheat.netlify.app"],
+
   async rewrites() {
+    if (isProd) return [];
+
     return [
       {
         source: "/api/:path*",
