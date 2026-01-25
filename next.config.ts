@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["https://exam-system-nocheat.netlify.app"],
+  allowedDevOrigins: ["https://e9fc7eb66c78.ngrok-free.app"],
 
   async rewrites() {
     if (isProd) return [];
