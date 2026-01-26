@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 
 const API_BASE =
@@ -28,7 +28,7 @@ export default function AttemptPage() {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
-  const [status, setStatus] = useState<"idle" | "finishing" | "done">("idle");
+  const [status, setStatus] = useState<"idle" | "finishing">("idle");
   const [error, setError] = useState<string | null>(null);
 
   // ✅ Anti-cheat listeners
@@ -73,10 +73,8 @@ export default function AttemptPage() {
   }, [token, attemptId, examId]);
 
   const finish = async () => {
-    if (!token) {
-      setError("Token yo‘q");
-      return;
-    }
+    if (!token) return setError("Token yo‘q");
+
     try {
       setStatus("finishing");
       setError(null);
@@ -89,11 +87,12 @@ export default function AttemptPage() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({}), // backend body talab qilmasa bo'sh
+          body: JSON.stringify({}),
         },
       );
 
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
         setError(
           data?.detail ? JSON.stringify(data.detail) : "Finish bo‘lmadi",
@@ -102,7 +101,6 @@ export default function AttemptPage() {
         return;
       }
 
-      setStatus("done");
       window.location.href = `/student/result/${attemptId}`;
     } catch (e: any) {
       setError(e?.message || "Failed to fetch");
@@ -114,8 +112,7 @@ export default function AttemptPage() {
     <div style={{ padding: 16 }}>
       <h1 style={{ fontSize: 22, fontWeight: 900 }}>Attempt #{attemptId}</h1>
       <p style={{ opacity: 0.8 }}>
-        Anti-cheat ishlayapti: tab almashsang / copy qilsang teacher’da event
-        chiqadi.
+        Tab almashtir / copy qil → Teacher monitoring’da event chiqishi kerak.
       </p>
 
       {error && (

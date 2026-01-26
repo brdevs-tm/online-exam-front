@@ -33,12 +33,14 @@ export default function StudentHome() {
         });
 
         const data = await res.json().catch(() => ({}));
+
         if (!res.ok) {
           setError(
             data?.detail ? JSON.stringify(data.detail) : "Exams yuklanmadi",
           );
           return;
         }
+
         setExams(Array.isArray(data) ? data : data?.items || []);
       } catch (e: any) {
         setError(e?.message || "Failed to fetch");
@@ -57,22 +59,25 @@ export default function StudentHome() {
       const res = await fetch(`${API_BASE}/api/student/exams/${examId}/start`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({}), // backend body talab qilmasa bo'sh
+        body: JSON.stringify({}),
       });
 
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
         setError(data?.detail ? JSON.stringify(data.detail) : "Start bo‘lmadi");
         return;
       }
 
-      // backend nima qaytarishiga qarab:
-      const attemptId = data?.attempt_id ?? data?.id ?? data?.attempt?.id;
+      // ✅ eng ko‘p uchraydigan formatlar:
+      const attemptId =
+        data?.attempt_id ?? data?.attemptId ?? data?.id ?? data?.attempt?.id;
+
       if (!attemptId) {
-        setError("Attempt ID qaytmadi. Backend response'ni tekshir.");
+        setError("Attempt ID qaytmadi. Backend response formatini yubor.");
         return;
       }
 

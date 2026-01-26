@@ -21,10 +21,8 @@ export default function TeacherPage() {
     "connecting" | "open" | "closed" | "error"
   >("connecting");
 
-  // ✅ window faqat clientda bor, shuning uchun useMemo ichida ham guard qilamiz
   const wsUrl = useMemo(() => {
-    // API_BASE: http(s)://host -> ws(s)://host
-    const wsBase = API_BASE.replace(/^http/, "ws");
+    const wsBase = API_BASE.replace(/^http/, "ws"); // http->ws, https->wss
     return `${wsBase}/ws/monitor`;
   }, []);
 
@@ -36,6 +34,8 @@ export default function TeacherPage() {
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => setStatus("open");
+      ws.onclose = () => setStatus("closed");
+      ws.onerror = () => setStatus("error");
 
       ws.onmessage = (e) => {
         try {
@@ -47,25 +47,18 @@ export default function TeacherPage() {
           );
         }
       };
-
-      ws.onerror = () => setStatus("error");
-      ws.onclose = () => setStatus("closed");
     } catch {
       setStatus("error");
     }
 
-    return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-    };
+    return () => ws?.close();
   }, [wsUrl]);
 
   return (
     <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 900 }}>Teacher Live Monitoring</h1>
-      <p style={{ opacity: 0.8 }}>Real-time feed (last 100 events)</p>
-
-      <div style={{ marginTop: 10, opacity: 0.8, fontSize: 13 }}>
-        WS: <b>{status}</b> • <span>{wsUrl}</span>
+      <h1 style={{ fontSize: 26, fontWeight: 900 }}>Teacher Live Monitoring</h1>
+      <div style={{ opacity: 0.8, marginTop: 4 }}>
+        WS: <b>{status}</b> • {wsUrl}
       </div>
 
       <div style={{ marginTop: 14 }}>
@@ -83,20 +76,14 @@ export default function TeacherPage() {
                   background: "rgba(255,255,255,0.06)",
                 }}
               >
-                <div style={{ fontWeight: 800 }}>
+                <div style={{ fontWeight: 900 }}>
                   {ev.event || "EVENT"}{" "}
                   <span style={{ opacity: 0.6, fontWeight: 600 }}>
                     {ev.ts || ""}
                   </span>
                 </div>
                 <pre
-                  style={{
-                    marginTop: 6,
-                    fontSize: 12,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    opacity: 0.9,
-                  }}
+                  style={{ marginTop: 8, fontSize: 12, whiteSpace: "pre-wrap" }}
                 >
                   {JSON.stringify(ev, null, 2)}
                 </pre>
