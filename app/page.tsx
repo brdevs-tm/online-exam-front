@@ -10,50 +10,87 @@ type User = {
   role: string;
 };
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000";
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debugToken, setDebugToken] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const run = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const qTelegramId = params.get("telegram_id");
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const qTelegramId = params.get("telegram_id");
 
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg?.ready) tg.ready();
+        // TG WebApp object kelishini kutamiz
+        let tg: any = null;
+        for (let i = 0; i < 30; i++) {
+          tg = (window as any).Telegram?.WebApp;
+          if (tg?.initDataUnsafe?.user?.id) break;
+          await sleep(100);
+        }
 
-      const telegramIdFromTg = tg?.initDataUnsafe?.user?.id;
-      const telegramId =
-        telegramIdFromTg ?? (qTelegramId ? Number(qTelegramId) : null);
+        const telegramIdFromTg = tg?.initDataUnsafe?.user?.id;
+        const telegramId =
+          telegramIdFromTg ?? (qTelegramId ? Number(qTelegramId) : null);
 
-      if (!telegramId) {
-        setError("Telegram ID topilmadi.");
-        return;
-      }
+        if (!telegramId) {
+          setError(
+            "Telegram session topilmadi. WebApp’ni botdagi tugma orqali oching.",
+          );
+          return;
+        }
 
-      const res = await fetch("/api/bot/webapp-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegram_id: telegramId }),
-      });
+        tg?.ready?.();
 
-      const data = await res.json().catch(() => ({}));
+        // ✅ Asosiy qadam: backend'dan token + user olamiz
+        const res = await fetch(`${API_BASE}/api/bot/webapp-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ telegram_id: telegramId }),
+        });
 
-      if (!res.ok) {
-        setError(data?.detail ? JSON.stringify(data.detail) : "Auth xato");
-        return;
-      }
+        const data = await res.json().catch(() => ({}));
 
-      if (data?.ok && data?.user) {
+        if (!res.ok || !data?.ok || !data?.token || !data?.user) {
+          setError(
+            data?.detail
+              ? JSON.stringify(data.detail)
+              : "Auth xato: token olinmadi.",
+          );
+          return;
+        }
+
         localStorage.setItem("access_token", data.token);
-        setUser(data.user as User);
-        return;
-      }
+        setDebugToken(data.token);
 
-      setError("Auth failed: backend user qaytarmadi.");
+        if (cancelled) return;
+        setUser(data.user as User);
+
+        // ✅ Role bo'yicha redirect
+        setTimeout(() => {
+          const role = (data.user?.role || "").toLowerCase();
+          if (role === "teacher") window.location.href = "/teacher";
+          else window.location.href = "/student";
+        }, 250);
+      } catch (e: any) {
+        setError(e?.message || "Noma’lum xatolik");
+      }
     };
 
     run();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -76,7 +113,6 @@ export default function Home() {
       />
 
       <div style={{ width: "100%", maxWidth: 520 }}>
-        {/* Header */}
         <div style={{ marginBottom: 14 }}>
           <div
             style={{
@@ -109,7 +145,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Card */}
         <div
           style={{
             borderRadius: 18,
@@ -120,7 +155,6 @@ export default function Home() {
             backdropFilter: "blur(10px)",
           }}
         >
-          {/* Error */}
           {error && (
             <div
               style={{
@@ -144,7 +178,6 @@ export default function Home() {
                 >
                   <span style={{ fontSize: 16 }}>✖</span>
                 </div>
-
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>
                     Xatolik yuz berdi
@@ -154,102 +187,44 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
+          {!error && !user && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div
                 style={{
-                  marginTop: 12,
-                  fontSize: 12,
-                  opacity: 0.8,
-                  lineHeight: 1.5,
+                  width: 42,
+                  height: 42,
+                  borderRadius: 14,
+                  background: "rgba(99,102,241,0.14)",
+                  border: "1px solid rgba(99,102,241,0.28)",
+                  display: "grid",
+                  placeItems: "center",
                 }}
               >
-                Maslahat: WebApp’ni aynan botdagi{" "}
-                <span style={{ fontWeight: 700 }}>web_app</span> tugmasi orqali
-                oching va internet ulanishni tekshiring.
-              </div>
-            </div>
-          )}
-
-          {/* Loading */}
-          {!error && !user && (
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div
                   style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 14,
-                    background: "rgba(99,102,241,0.14)",
-                    border: "1px solid rgba(99,102,241,0.28)",
-                    display: "grid",
-                    placeItems: "center",
+                    width: 18,
+                    height: 18,
+                    borderRadius: 999,
+                    border: "2px solid rgba(255,255,255,0.25)",
+                    borderTop: "2px solid rgba(255,255,255,0.95)",
+                    animation: "spin 0.9s linear infinite",
                   }}
-                >
-                  {/* spinner */}
-                  <div
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: 999,
-                      border: "2px solid rgba(255,255,255,0.25)",
-                      borderTop: "2px solid rgba(255,255,255,0.95)",
-                      animation: "spin 0.9s linear infinite",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 800 }}>
-                    Authenticating…
-                  </div>
-                  <div style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>
-                    Telegram session tekshirilmoqda va token olinmoqda
-                  </div>
-                </div>
+                />
               </div>
-
-              {/* skeleton */}
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: "grid", gap: 10 }}>
-                  <div
-                    style={{
-                      height: 14,
-                      width: "60%",
-                      borderRadius: 999,
-                      background:
-                        "linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.06) 100%)",
-                      backgroundSize: "200% 100%",
-                      animation: "shimmer 1.2s ease-in-out infinite",
-                    }}
-                  />
-                  <div
-                    style={{
-                      height: 12,
-                      width: "85%",
-                      borderRadius: 999,
-                      background:
-                        "linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.05) 100%)",
-                      backgroundSize: "200% 100%",
-                      animation: "shimmer 1.2s ease-in-out infinite",
-                    }}
-                  />
-                  <div
-                    style={{
-                      height: 12,
-                      width: "72%",
-                      borderRadius: 999,
-                      background:
-                        "linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.05) 100%)",
-                      backgroundSize: "200% 100%",
-                      animation: "shimmer 1.2s ease-in-out infinite",
-                    }}
-                  />
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>
+                  Authenticating…
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>
+                  Backend’dan token olinmoqda
                 </div>
               </div>
             </div>
           )}
 
-          {/* Success */}
           {!error && user && (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -267,17 +242,15 @@ export default function Home() {
                 >
                   ✅
                 </div>
-
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 18, fontWeight: 900 }}>
                     Welcome{" "}
                     <span style={{ opacity: 0.95 }}>{user.full_name}</span>
                   </div>
                   <div style={{ fontSize: 13, opacity: 0.85, marginTop: 3 }}>
-                    Siz muvaffaqiyatli autentifikatsiyadan o‘tdingiz
+                    Redirecting…
                   </div>
                 </div>
-
                 <span
                   style={{
                     fontSize: 12,
@@ -295,60 +268,27 @@ export default function Home() {
                 </span>
               </div>
 
-              <div
-                style={{
-                  marginTop: 16,
-                  borderRadius: 14,
-                  padding: 14,
-                  background: "rgba(0,0,0,0.22)",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                }}
-              >
+              {debugToken && (
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "140px 1fr",
-                    gap: 10,
-                    alignItems: "center",
+                    marginTop: 12,
+                    padding: 12,
+                    borderRadius: 12,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    wordBreak: "break-all",
+                    fontSize: 12,
+                    opacity: 0.9,
                   }}
                 >
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>Role</div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>
-                    {user.role}
-                  </div>
-
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>Telegram ID</div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      fontFamily:
-                        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                      letterSpacing: 0.2,
-                      opacity: 0.95,
-                    }}
-                  >
-                    {user.telegram_id}
-                  </div>
+                  <b>DEBUG TOKEN:</b>
+                  <div>{debugToken}</div>
                 </div>
-              </div>
-
-              <div
-                style={{
-                  marginTop: 14,
-                  fontSize: 12,
-                  opacity: 0.75,
-                  lineHeight: 1.5,
-                }}
-              >
-                Keyingi qadam: bu joyga “Available Exams”, “My Attempts” va
-                “Statistics” bloklarini qo‘shamiz.
-              </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* tiny footer */}
         <div
           style={{
             marginTop: 12,
@@ -361,16 +301,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* keyframes */}
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

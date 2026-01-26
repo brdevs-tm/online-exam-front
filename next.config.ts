@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["https://audrianna-overbrave-presumingly.ngrok-free.dev"],
+  allowedDevOrigins: [
+    "https://audrianna-overbrave-presumingly.ngrok-free.dev",
+    "https://audrianna-overbrave-presumingly.ngrok-free.app",
+  ],
   async rewrites() {
     return [
       {
