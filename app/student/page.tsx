@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
@@ -21,6 +21,12 @@ export default function StudentHome() {
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
+  const dotColor = useMemo(() => {
+    if (error) return "var(--bad)";
+    if (loading) return "var(--info)";
+    return "var(--good)";
+  }, [error, loading]);
 
   useEffect(() => {
     const run = async () => {
@@ -72,12 +78,11 @@ export default function StudentHome() {
         return;
       }
 
-      // ✅ eng ko‘p uchraydigan formatlar:
       const attemptId =
         data?.attempt_id ?? data?.attemptId ?? data?.id ?? data?.attempt?.id;
 
       if (!attemptId) {
-        setError("Attempt ID qaytmadi. Backend response formatini yubor.");
+        setError("Attempt ID qaytmadi (start response formatini tekshir).");
         return;
       }
 
@@ -88,44 +93,81 @@ export default function StudentHome() {
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 900 }}>Student • My Exams</h1>
-
-      {error && (
-        <div style={{ marginTop: 10, padding: 10, border: "1px solid #f55" }}>
-          {error}
+    <div className="container">
+      <div className="shell">
+        <div style={{ marginBottom: 14 }}>
+          <div className="pill">
+            <span className="dot" style={{ background: dotColor }} />
+            <span style={{ fontSize: 13, opacity: 0.9 }}>Examly • Student</span>
+          </div>
         </div>
-      )}
 
-      {loading ? (
-        <p style={{ opacity: 0.8 }}>Loading…</p>
-      ) : exams.length === 0 ? (
-        <p style={{ opacity: 0.8 }}>
-          Exam yo‘q (teacher assign qilmagan bo‘lishi mumkin)
-        </p>
-      ) : (
-        <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-          {exams.map((ex) => (
-            <div
-              key={ex.id}
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)",
-              }}
-            >
-              <div style={{ fontWeight: 900 }}>{ex.title}</div>
-              {ex.description && (
-                <div style={{ opacity: 0.8 }}>{ex.description}</div>
-              )}
-
-              <div style={{ marginTop: 10 }}>
-                <button onClick={() => startExam(ex.id)}>Start</button>
+        <div className="card">
+          <div className="row">
+            <div>
+              <h1 className="h1">Available Exams</h1>
+              <div className="small" style={{ marginTop: 6 }}>
+                Start bosib examni boshlaysan. Anti-cheat avtomatik ishlaydi.
               </div>
             </div>
-          ))}
+            <span className="badge">STUDENT</span>
+          </div>
+
+          <hr className="hr" />
+
+          {error && (
+            <div
+              className="kvRow"
+              style={{
+                borderColor: "rgba(239,68,68,0.28)",
+                background: "rgba(239,68,68,0.10)",
+              }}
+            >
+              <div style={{ fontWeight: 900 }}>Xatolik</div>
+              <div className="small" style={{ maxWidth: 560 }}>
+                {error}
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="muted">Loading…</div>
+          ) : exams.length === 0 ? (
+            <div className="muted">
+              Exam yo‘q (teacher assign qilmagan bo‘lishi mumkin)
+            </div>
+          ) : (
+            <div className="grid" style={{ marginTop: 10 }}>
+              {exams.map((ex) => (
+                <div key={ex.id} className="kvRow">
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 950, fontSize: 14 }}>
+                      {ex.title}
+                    </div>
+                    <div className="small" style={{ marginTop: 4 }}>
+                      {ex.description || "Description yo‘q"}
+                    </div>
+                  </div>
+                  <button
+                    className="btn btnPrimary"
+                    onClick={() => startExam(ex.id)}
+                  >
+                    Start
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="small" style={{ marginTop: 12 }}>
+            Token localStorage’da saqlanadi • Backend: {API_BASE}
+          </div>
         </div>
-      )}
+
+        <div className="small" style={{ marginTop: 12, textAlign: "center" }}>
+          Secure session • JWT stored locally
+        </div>
+      </div>
     </div>
   );
 }
