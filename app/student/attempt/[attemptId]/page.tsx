@@ -39,8 +39,17 @@ export default function AttemptPage() {
   const params = useParams<{ attemptId: string }>();
   const search = useSearchParams();
 
-  const attemptId = Number(params.attemptId);
-  const examId = Number(search.get("exam_id") || 0);
+  const attemptIdFromUrl = Number(params.attemptId);
+  const attemptId =
+    attemptIdFromUrl ||
+    Number(
+      typeof window !== "undefined" ? localStorage.getItem("attempt_id") : 0,
+    );
+
+  const examIdFromUrl = Number(search.get("exam_id") || 0);
+  const examId =
+    examIdFromUrl ||
+    Number(typeof window !== "undefined" ? localStorage.getItem("exam_id") : 0);
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -55,7 +64,7 @@ export default function AttemptPage() {
   const [blur, setBlur] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // watermark (dynamic)
+  // ✅ watermark
   const wmText = useMemo(() => {
     const tid = tgUserId ?? "unknown";
     return `Examly • tid:${tid} • attempt:${attemptId} • ${nowIso()}`;
@@ -75,24 +84,30 @@ export default function AttemptPage() {
   const showOverlay = (
     title: string,
     desc: string,
-    tone: OverlayState extends any ? any : any = "warn",
+    tone: "warn" | "danger" | "ok" = "warn",
   ) => {
     setOverlay({ open: true, title, desc, tone });
     setTimeout(() => setOverlay({ open: false }), 1200);
   };
 
-  // heuristics: background timing
   const hiddenAtRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!token || !attemptId) return;
+    // ✅ attemptId bo‘lmasa ishlamaydi
+    if (!token) return;
+    if (!attemptId) {
+      setError(
+        "Attempt ID topilmadi (URL yoki localStorage). Startni qayta bosing.",
+      );
+      return;
+    }
 
-    // Telegram WebApp: best practice
+    // Telegram WebApp
     const tg = (window as any).Telegram?.WebApp;
     if (tg?.ready) tg.ready();
     if (tg?.expand) tg.expand();
 
-    // block selection
+    // anti-select
     document.documentElement.style.userSelect = "none";
     (document.body.style as any).webkitUserSelect = "none";
 
@@ -114,25 +129,18 @@ export default function AttemptPage() {
           "App’dan chiqildi / minimize bo‘ldi. Monitoring yozildi.",
           "warn",
         );
-        log("TAB_SWITCH");
         log("VISIBILITY_HIDDEN");
       } else {
-        // came back
         const hiddenAt = hiddenAtRef.current;
         hiddenAtRef.current = null;
         setBlur(false);
 
         if (hiddenAt) {
           const dur = Date.now() - hiddenAt;
-          // uzun background bo‘lsa screen record/screenshot suspect deb belgilaymiz
-          if (dur > 2500) {
-            log("SCREEN_RECORD_SUSPECT", { hidden_ms: dur });
-          } else {
-            log("SCREENSHOT_SUSPECT", { hidden_ms: dur });
-          }
+          if (dur > 2500) log("SCREEN_RECORD_SUSPECT", { hidden_ms: dur });
+          else log("SCREENSHOT_SUSPECT", { hidden_ms: dur });
         }
-
-        log("WINDOW_FOCUS");
+        log("VISIBILITY_VISIBLE");
       }
     };
 
@@ -175,7 +183,7 @@ export default function AttemptPage() {
       const ctrl = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;
 
-      // PrintScreen (to‘liq blok bo‘lmaydi, lekin log + blur qilamiz)
+      // PrintScreen log
       if (key === "printscreen") {
         e.preventDefault();
         setBlur(true);
@@ -189,7 +197,7 @@ export default function AttemptPage() {
         return;
       }
 
-      // Block common shortcuts
+      // Block common
       if (ctrl && (key === "p" || key === "s" || key === "u")) {
         e.preventDefault();
         showOverlay("Blocked", "Shortcut bloklandi (logged).", "warn");
@@ -222,7 +230,7 @@ export default function AttemptPage() {
     document.addEventListener("selectstart", onSelectStart);
     window.addEventListener("keydown", onKeyDown, { capture: true });
 
-    // “debugger pause suspect”
+    // debugger pause suspect
     const lastTick = { t: Date.now() };
     const tickTimer = setInterval(() => {
       const now = Date.now();
@@ -251,8 +259,10 @@ export default function AttemptPage() {
 
   const finish = async () => {
     if (!token) return setError("Token yo‘q");
+    if (!attemptId) return setError("Attempt ID yo‘q");
     try {
       setError(null);
+
       const res = await fetch(
         `${API_BASE}/api/student/attempts/${attemptId}/finish`,
         {
@@ -264,6 +274,7 @@ export default function AttemptPage() {
           body: JSON.stringify({}),
         },
       );
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(
@@ -271,7 +282,12 @@ export default function AttemptPage() {
         );
         return;
       }
+
       showOverlay("OK", "Exam yakunlandi", "ok");
+
+      // ✅ yakun bo‘lganda attempt_id ni o‘chir (xohlasang)
+      localStorage.removeItem("attempt_id");
+
       window.location.href = `/student/result/${attemptId}`;
     } catch (e: any) {
       setError(e?.message || "Failed to fetch");
@@ -380,7 +396,7 @@ export default function AttemptPage() {
             >
               <div>
                 <div style={{ fontSize: 22, fontWeight: 950 }}>
-                  Attempt #{attemptId}
+                  Attempt #{attemptId || "—"}
                 </div>
                 <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
                   Anti-cheat: minimize/tab switch/copy/paste/devtools/screenshot
@@ -431,9 +447,8 @@ export default function AttemptPage() {
                 opacity: 0.9,
               }}
             >
-              Test qilish uchun: mini appdan chiqib qayt, copy/paste qilib ko‘r,
-              yoki desktopda PrintScreen bosib ko‘r. Teacher monitor’da eventlar
-              chiqadi.
+              Test: mini app’dan chiqib qayt, copy/paste qilib ko‘r, desktopda
+              PrintScreen bos. Teacher monitor’da eventlar chiqadi.
             </div>
           </div>
         </div>

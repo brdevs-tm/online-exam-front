@@ -1,9 +1,21 @@
 "use client";
 
+import { useMemo } from "react";
 import { useParams } from "next/navigation";
 
 export default function ResultPage() {
   const params = useParams<{ attemptId: string }>();
+
+  const attemptId = useMemo(() => {
+    const urlId = params?.attemptId;
+    if (urlId) return urlId;
+
+    if (typeof window !== "undefined") {
+      const fromLs = localStorage.getItem("attempt_id");
+      if (fromLs) return fromLs;
+    }
+    return "—";
+  }, [params?.attemptId]);
 
   return (
     <div className="container">
@@ -20,7 +32,7 @@ export default function ResultPage() {
             <div>
               <h1 className="h1">Result ✅</h1>
               <div className="small" style={{ marginTop: 6 }}>
-                Attempt #{params.attemptId} yakunlandi.
+                Attempt #{attemptId} yakunlandi.
               </div>
             </div>
             <span className="badge">DONE</span>
@@ -31,7 +43,7 @@ export default function ResultPage() {
           <div className="kv">
             <div className="kvRow">
               <span className="small">Attempt ID</span>
-              <b>{params.attemptId}</b>
+              <b>{attemptId}</b>
             </div>
             <div className="kvRow">
               <span className="small">Next step</span>

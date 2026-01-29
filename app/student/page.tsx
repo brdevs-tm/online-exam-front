@@ -82,9 +82,15 @@ export default function StudentHome() {
         data?.attempt_id ?? data?.attemptId ?? data?.id ?? data?.attempt?.id;
 
       if (!attemptId) {
-        setError("Attempt ID qaytmadi (start response formatini tekshir).");
+        setError(
+          "Attempt ID qaytmadi (backend start response formatini tekshir).",
+        );
         return;
       }
+
+      // ✅ MUHIM: attemptId ni saqlab qo‘yamiz (mini app reload bo‘lsa ham yo‘qolmasin)
+      localStorage.setItem("attempt_id", String(attemptId));
+      localStorage.setItem("exam_id", String(examId));
 
       window.location.href = `/student/attempt/${attemptId}?exam_id=${examId}`;
     } catch (e: any) {
